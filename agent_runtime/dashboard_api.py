@@ -1,0 +1,110 @@
+"""Simple HTTP API for the admin dashboard."""
+
+import json
+import os
+from pathlib import Path
+from aiohttp import web
+from .audit import AuditLog
+
+
+class DashboardAPI:
+    def __init__(self, audit_log: AuditLog, runtime):
+        self.audit = audit_log
+        self.runtime = runtime
+
+    async def start(self, port: int = 3001):
+        @web.middleware
+        async def cors_middleware(request, handler):
+            if request.method == 'OPTIONS':
+                resp = web.Response(status=200)
+            else:
+                resp = await handler(request)
+            resp.headers['Access-Control-Allow-Origin'] = '*'
+            resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+            resp.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+            return resp
+
+        app = web.Application(middlewares=[cors_middleware])
+        app.router.add_get('/api/agents', self.get_agents)
+        app.router.add_get('/api/audit', self.get_audit)
+        app.router.add_get('/api/stats', self.get_stats)
+        app.router.add_post('/api/agents/create', self.create_agent)
+        app.router.add_post('/api/agents/{username}/disable', self.disable_agent)
+        app.router.add_post('/api/agents/{username}/enable', self.enable_agent)
+
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', port)
+        await site.start()
+        print(f"  Dashboard API on http://localhost:{port}")
+
+    async def get_agents(self, request):
+        agents = []
+        for username, bot in self.runtime.bots.items():
+            agent = bot["agent"]
+            agents.append({
+                "username": username,
+                "name": agent.config.name,
+                "avatar": agent.config.avatar,
+                "trigger": agent.config.trigger,
+                "tools": agent.config.tools,
+                "approval": agent.config.approval,
+                "enabled": not getattr(agent, '_disabled', False),
+                "source_file": agent.config.source_file,
+            })
+        return web.json_response(agents)
+
+    async def get_audit(self, request):
+        limit = int(request.query.get('limit', '100'))
+        agent = request.query.get('agent')
+        event_type = request.query.get('type')
+        entries = self.audit.get_recent(limit=limit, agent_name=agent, event_type=event_type)
+        return web.json_response(entries)
+
+    async def get_stats(self, request):
+        stats = self.audit.get_agent_stats()
+        return web.json_response(stats)
+
+    async def create_agent(self, request):
+        """Save a new .md agent file."""
+        try:
+            data = await request.json()
+            filename = data.get('filename', '').strip()
+            content = data.get('content', '').strip()
+
+            if not filename or not content:
+                return web.json_response({"error": "filename and content required"}, status=400)
+
+            # Sanitize filename
+            filename = filename.replace('/', '').replace('..', '')
+            if not filename.endswith('.md'):
+                filename += '.md'
+
+            agents_dir = self.runtime.agents_dir
+            filepath = Path(agents_dir) / filename
+
+            if filepath.exists():
+                return web.json_response({"error": f"Agent '{filename}' already exists"}, status=409)
+
+            filepath.write_text(content)
+            self.audit.log("system", "agent_created", "", "admin", f"Created agent: {filename}")
+
+            return web.json_response({"status": "ok", "file": str(filepath)})
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def disable_agent(self, request):
+        username = request.match_info['username']
+        if username in self.runtime.bots:
+            self.runtime.bots[username]["agent"]._disabled = True
+            self.audit.log(username, "disabled", "", "admin", "Agent disabled by admin")
+            return web.json_response({"status": "disabled"})
+        return web.json_response({"error": "not found"}, status=404)
+
+    async def enable_agent(self, request):
+        username = request.match_info['username']
+        if username in self.runtime.bots:
+            self.runtime.bots[username]["agent"]._disabled = False
+            self.audit.log(username, "enabled", "", "admin", "Agent enabled by admin")
+            return web.json_response({"status": "enabled"})
+        return web.json_response({"error": "not found"}, status=404)

@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+synapse/data/
+memory/
+audit/
+/tmp/
+*.log
+.env

@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vanpier</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #242424;
+      --border: #2a2a2a;
+      --text: #e0e0e0;
+      --text-dim: #888;
+      --accent: #6c5ce7;
+      --accent-light: #a29bfe;
+      --agent: #00b894;
+      --human: #74b9ff;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sidebar-header p {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    .sidebar-section {
+      padding: 12px 16px 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+    }
+
+    .room-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .room-item {
+      padding: 10px 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      transition: background 0.15s;
+    }
+
+    .room-item:hover { background: var(--surface2); }
+    .room-item.active { background: var(--accent); color: white; }
+    .room-item .hash { color: var(--text-dim); font-weight: 600; }
+    .room-item.active .hash { color: rgba(255,255,255,0.7); }
+
+    .new-room-btn {
+      margin: 12px 16px;
+      padding: 8px;
+      background: var(--surface2);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 13px;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .new-room-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Agents panel */
+    .agents-list {
+      border-top: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .agent-item {
+      padding: 6px 20px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .agent-item:hover { background: var(--surface2); }
+
+    .agent-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--agent);
+    }
+
+    /* Main chat area */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chat-header h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .chat-header .members {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 24px;
+    }
+
+    .message {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      max-width: 800px;
+    }
+
+    .message-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .message-avatar.human { background: var(--human); color: white; font-size: 14px; font-weight: 600; }
+    .message-avatar.agent { background: var(--surface2); }
+
+    .message-content { flex: 1; min-width: 0; }
+
+    .message-header {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .message-name { font-weight: 600; font-size: 14px; }
+    .message-name.agent-name { color: var(--agent); }
+    .message-time { font-size: 11px; color: var(--text-dim); }
+    .message-tag {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--agent);
+      color: white;
+      font-weight: 500;
+    }
+
+    .message-body {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+      word-wrap: break-word;
+    }
+
+    .message-body p { margin-bottom: 8px; }
+    .message-body p:last-child { margin-bottom: 0; }
+
+    .message-body strong { color: #fff; }
+
+    .message-body code {
+      background: var(--surface2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .message-body pre {
+      background: var(--surface2);
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 8px 0;
+      font-size: 13px;
+    }
+
+    .message-body hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 8px 0;
+    }
+
+    /* Approval card */
+    .approval-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 8px;
+    }
+
+    .approval-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .btn {
+      padding: 6px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+
+    .btn-approve { background: var(--agent); color: white; }
+    .btn-approve:hover { background: #00a885; }
+    .btn-reject { background: var(--surface); color: var(--text-dim); border: 1px solid var(--border); }
+    .btn-reject:hover { border-color: #e74c3c; color: #e74c3c; }
+
+    /* Input area */
+    .input-area {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    .input-wrapper {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px 12px;
+      transition: border-color 0.15s;
+    }
+
+    .input-wrapper:focus-within { border-color: var(--accent); }
+
+    .input-wrapper textarea {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      max-height: 120px;
+      line-height: 1.4;
+    }
+
+    .send-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--accent);
+      border: none;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .send-btn:hover { background: var(--accent-light); }
+
+    /* Autocomplete dropdown */
+    .autocomplete {
+      position: absolute;
+      bottom: 100%;
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 4px;
+      overflow: hidden;
+      display: none;
+      z-index: 50;
+      box-shadow: 0 -4px 16px rgba(0,0,0,0.3);
+    }
+
+    .autocomplete.active { display: block; }
+
+    .autocomplete-item {
+      padding: 8px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      transition: background 0.1s;
+    }
+
+    .autocomplete-item:hover,
+    .autocomplete-item.selected {
+      background: var(--accent);
+      color: white;
+    }
+
+    .autocomplete-item .ac-avatar {
+      font-size: 18px;
+      width: 28px;
+      text-align: center;
+    }
+
+    .autocomplete-item .ac-name { font-weight: 500; }
+    .autocomplete-item .ac-hint {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-left: auto;
+    }
+
+    .autocomplete-item:hover .ac-hint,
+    .autocomplete-item.selected .ac-hint { color: rgba(255,255,255,0.7); }
+
+    .typing-indicator {
+      padding: 4px 0;
+      font-size: 12px;
+      color: var(--text-dim);
+      min-height: 20px;
+    }
+
+    /* Welcome screen */
+    .welcome {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--text-dim);
+    }
+
+    .welcome h2 { font-size: 20px; color: var(--text); margin-bottom: 8px; }
+    .welcome p { font-size: 14px; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      width: 400px;
+    }
+
+    .modal h3 { margin-bottom: 16px; }
+
+    .modal input, .modal select {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+
+    .modal input:focus { border-color: var(--accent); }
+
+    .modal label {
+      font-size: 12px;
+      color: var(--text-dim);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-secondary { background: var(--surface2); color: var(--text); }
+
+    .emoji-pick {
+      font-size: 22px; cursor: pointer; padding: 4px 8px;
+      border-radius: 6px; border: 2px solid transparent;
+      transition: all 0.1s;
+    }
+    .emoji-pick:hover { background: var(--surface2); }
+    .emoji-pick.selected { border-color: var(--accent); background: var(--surface2); }
+
+    /* Reply bar */
+    .reply-bar {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--surface2);
+      border-radius: 8px 8px 0 0;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      font-size: 13px;
+      margin-bottom: -1px;
+    }
+
+    .reply-bar.active { display: flex; }
+
+    .reply-bar .reply-indicator {
+      width: 3px;
+      height: 20px;
+      background: var(--accent);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .reply-bar .reply-name {
+      font-weight: 600;
+      color: var(--agent);
+      flex-shrink: 0;
+    }
+
+    .reply-bar .reply-preview {
+      color: var(--text-dim);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .reply-bar .reply-close {
+      cursor: pointer;
+      color: var(--text-dim);
+      font-size: 16px;
+      padding: 0 4px;
+      flex-shrink: 0;
+    }
+
+    .reply-bar .reply-close:hover { color: var(--text); }
+
+    /* Reply button on messages */
+    .message-actions {
+      position: absolute;
+      top: -8px;
+      right: 0;
+      display: none;
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px;
+    }
+
+    .message:hover .message-actions { display: flex; }
+
+    .message { position: relative; }
+
+    .msg-action-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .msg-action-btn:hover { background: var(--surface2); color: var(--text); }
+
+    /* Reply context in message */
+    .message-reply-context {
+      font-size: 12px;
+      color: var(--text-dim);
+      border-left: 2px solid var(--accent);
+      padding-left: 8px;
+      margin-bottom: 6px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .message-reply-context .reply-to-name { color: var(--agent); font-weight: 500; }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>Vanpier</h1>
+      <p>Your agents, your rules</p>
+    </div>
+
+    <div class="sidebar-section">Rooms</div>
+    <div class="room-list" id="roomList"></div>
+    <div class="new-room-btn" onclick="showNewRoomModal()">+ New Room</div>
+
+    <div class="agents-list">
+      <div class="sidebar-section">Agents Online</div>
+      <div id="agentList"></div>
+      <div class="new-room-btn" onclick="showAddAgentModal()" style="margin:8px 16px">+ Add Agent</div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main" id="mainArea">
+    <div class="welcome">
+      <div>
+        <h2>Welcome to Vanpier</h2>
+        <p>Create a room and invite agents to get started.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Agent Modal -->
+  <div class="modal-overlay" id="addAgentModal">
+    <div class="modal" style="width:520px">
+      <h3>Create New Agent</h3>
+
+      <label>Name</label>
+      <input type="text" id="agentName" placeholder="e.g. Meeting Notes">
+
+      <label>Avatar (emoji)</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <span class="emoji-pick selected" onclick="pickEmoji(this)">🤖</span>
+        <span class="emoji-pick" onclick="pickEmoji(this)">📝</span>
+        <span class="emoji-pick" onclick="pickEmoji(this)">💼</span>
+        <span class="emoji-pick" onclick="pickEmoji(this)">🔍</span>
+        <span class="emoji-pick" onclick="pickEmoji(this)">📊</span>
+        <span class="emoji-pick" onclick="pickEmoji(this)">🎯</span>
+        <span class="emoji-pick" onclick="pickEmoji(this)">💡</span>
+        <span class="emoji-pick" onclick="pickEmoji(this)">🛡️</span>
+        <span class="emoji-pick" onclick="pickEmoji(this)">📧</span>
+        <span class="emoji-pick" onclick="pickEmoji(this)">🗂️</span>
+        <span class="emoji-pick" onclick="pickEmoji(this)">⚙️</span>
+        <span class="emoji-pick" onclick="pickEmoji(this)">🧠</span>
+      </div>
+
+      <label>What does this agent do?</label>
+      <textarea id="agentRole" rows="3" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;resize:vertical;outline:none;margin-bottom:12px" placeholder="e.g. You summarize meeting discussions and extract action items."></textarea>
+
+      <label>Rules (one per line)</label>
+      <textarea id="agentRules" rows="3" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;resize:vertical;outline:none;margin-bottom:12px" placeholder="e.g. Keep summaries under 200 words&#10;Use bullet points&#10;Always list action items"></textarea>
+
+      <label>Tools</label>
+      <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="toolEmail" value="email"> Email
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="toolSearch" value="web_search"> Web Search
+        </label>
+      </div>
+
+      <div style="display:flex;gap:16px;margin-bottom:12px">
+        <div style="flex:1">
+          <label>Trigger</label>
+          <select id="agentTrigger" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px">
+            <option value="mention">When @mentioned</option>
+            <option value="all">Every message</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label>Approval</label>
+          <select id="agentApproval" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px">
+            <option value="required">Required for actions</option>
+            <option value="not_required">Not required</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:16px;max-height:200px;overflow-y:auto">
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">PREVIEW (.md)</div>
+        <pre id="agentPreview" style="font-size:12px;color:var(--text);white-space:pre-wrap;margin:0"></pre>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="hideAddAgentModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="createAgent()">Create Agent</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Room Modal -->
+  <div class="modal-overlay" id="newRoomModal">
+    <div class="modal">
+      <h3>Create Room</h3>
+      <label>Room name</label>
+      <input type="text" id="newRoomName" placeholder="e.g. Sales Team" autofocus>
+      <label>Invite agents</label>
+      <div id="agentCheckboxes"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="hideNewRoomModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="createRoom()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const HOMESERVER = 'http://localhost:8008';
+    const DOMAIN = 'byoa.local';
+
+    let accessToken = null;
+    let userId = null;
+    let currentRoomId = null;
+    let rooms = {};
+    let syncToken = null;
+    let agents = [
+      { username: 'sales-helper', name: '💼 Sales Helper' },
+      { username: 'code-reviewer', name: '🔍 Code Reviewer' },
+      { username: 'standup-bot', name: '📋 Standup Bot' },
+    ];
+
+    // --- Auth ---
+    async function login() {
+      // Auto-login as admin
+      const resp = await fetch(`${HOMESERVER}/_matrix/client/v3/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'm.login.password',
+          user: 'admin',
+          password: 'admin123',
+        }),
+      });
+      const data = await resp.json();
+      accessToken = data.access_token;
+      userId = data.user_id;
+      startSync();
+    }
+
+    // --- Matrix API helpers ---
+    async function matrixApi(method, path, body) {
+      const opts = {
+        method,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      };
+      if (body) opts.body = JSON.stringify(body);
+      const resp = await fetch(`${HOMESERVER}/_matrix/client/v3${path}`, opts);
+      return resp.json();
+    }
+
+    // --- Sync ---
+    async function startSync() {
+      // Initial sync
+      const data = await matrixApi('GET', `/sync?timeout=0`);
+      syncToken = data.next_batch;
+
+      // Process joined rooms
+      if (data.rooms?.join) {
+        for (const [roomId, roomData] of Object.entries(data.rooms.join)) {
+          processRoomData(roomId, roomData);
+        }
+      }
+
+      renderRooms();
+      renderAgents();
+      longPoll();
+    }
+
+    async function longPoll() {
+      while (true) {
+        try {
+          const data = await matrixApi('GET', `/sync?since=${syncToken}&timeout=30000`);
+          syncToken = data.next_batch;
+
+          if (data.rooms?.join) {
+            for (const [roomId, roomData] of Object.entries(data.rooms.join)) {
+              processRoomData(roomId, roomData);
+              if (roomId === currentRoomId) {
+                renderMessages(roomId);
+              }
+            }
+          }
+
+          if (data.rooms?.invite) {
+            for (const roomId of Object.keys(data.rooms.invite)) {
+              await matrixApi('POST', `/rooms/${roomId}/join`, {});
+            }
+          }
+
+          renderRooms();
+        } catch (e) {
+          console.error('Sync error:', e);
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      }
+    }
+
+    function processRoomData(roomId, data) {
+      if (!rooms[roomId]) {
+        rooms[roomId] = { name: roomId, messages: [], members: [] };
+      }
+
+      // Get room name from state
+      const stateEvents = data.state?.events || [];
+      for (const ev of stateEvents) {
+        if (ev.type === 'm.room.name') {
+          rooms[roomId].name = ev.content.name;
+        }
+        if (ev.type === 'm.room.member' && ev.content.membership === 'join') {
+          const name = ev.content.displayname || ev.state_key;
+          if (!rooms[roomId].members.includes(name)) {
+            rooms[roomId].members.push(name);
+          }
+        }
+      }
+
+      // Process timeline
+      const events = data.timeline?.events || [];
+      for (const ev of events) {
+        if (ev.type === 'm.room.message') {
+          rooms[roomId].messages.push({
+            sender: ev.sender,
+            displayName: ev.sender.split(':')[0].replace('@', ''),
+            body: ev.content.body || '',
+            timestamp: ev.origin_server_ts,
+            isAgent: agents.some(a => ev.sender.includes(a.username)),
+          });
+        }
+        if (ev.type === 'm.room.name') {
+          rooms[roomId].name = ev.content.name;
+        }
+        if (ev.type === 'm.room.member' && ev.content.membership === 'join') {
+          const name = ev.content.displayname || ev.state_key;
+          if (!rooms[roomId].members.includes(name)) {
+            rooms[roomId].members.push(name);
+          }
+        }
+      }
+    }
+
+    // --- Render ---
+    function renderRooms() {
+      const list = document.getElementById('roomList');
+      list.innerHTML = '';
+      for (const [roomId, room] of Object.entries(rooms)) {
+        const div = document.createElement('div');
+        div.className = `room-item ${roomId === currentRoomId ? 'active' : ''}`;
+        div.innerHTML = `<span class="hash">#</span> ${escHtml(room.name)}`;
+        div.onclick = () => openRoom(roomId);
+        list.appendChild(div);
+      }
+    }
+
+    function renderAgents() {
+      const list = document.getElementById('agentList');
+      list.innerHTML = agents.map(a =>
+        `<div class="agent-item" onclick="startDM('${a.username}', '${escAttr(a.name)}')" title="Click to DM"><span class="agent-dot"></span>${a.name}</div>`
+      ).join('');
+    }
+
+    async function startDM(username, displayName) {
+      // Check if DM room already exists
+      for (const [roomId, room] of Object.entries(rooms)) {
+        if (room.isDM === username) {
+          openRoom(roomId);
+          return;
+        }
+      }
+
+      // Create a new DM room
+      const data = await matrixApi('POST', '/createRoom', {
+        preset: 'public_chat',
+        is_direct: true,
+        invite: [`@${username}:${DOMAIN}`],
+        name: displayName,
+        initial_state: [],
+      });
+
+      if (data.room_id) {
+        rooms[data.room_id] = { name: displayName, messages: [], members: ['admin', username], isDM: username };
+        renderRooms();
+        openRoom(data.room_id);
+      }
+    }
+
+    function openRoom(roomId) {
+      currentRoomId = roomId;
+      renderRooms();
+      renderChat(roomId);
+    }
+
+    function renderChat(roomId) {
+      const room = rooms[roomId];
+      const main = document.getElementById('mainArea');
+      const agentMembers = room.members.filter(m =>
+        agents.some(a => m.toLowerCase().includes(a.username.replace('-', ' ')) || m.includes(a.username))
+      );
+
+      main.innerHTML = `
+        <div class="chat-header">
+          <div>
+            <h2># ${escHtml(room.name)}</h2>
+            <span class="members">${room.members.length} members${agentMembers.length ? ` · ${agentMembers.length} agents` : ''}</span>
+          </div>
+        </div>
+        <div class="messages" id="messages"></div>
+        <div class="input-area">
+          <div class="typing-indicator" id="typingIndicator"></div>
+          <div class="reply-bar" id="replyBar">
+            <div class="reply-indicator"></div>
+            <span class="reply-name" id="replyName"></span>
+            <span class="reply-preview" id="replyPreview"></span>
+            <span class="reply-close" onclick="clearReply()">✕</span>
+          </div>
+          <div class="input-wrapper" style="position:relative">
+            <div class="autocomplete" id="autocomplete"></div>
+            <textarea id="msgInput" rows="1" placeholder="Message #${escHtml(room.name)}... (type @ to mention agents)" onkeydown="handleKey(event)" oninput="handleInput(event)"></textarea>
+            <button class="send-btn" onclick="sendMessage()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+            </button>
+          </div>
+        </div>
+      `;
+
+      renderMessages(roomId);
+      document.getElementById('msgInput').focus();
+    }
+
+    function renderMessages(roomId) {
+      const container = document.getElementById('messages');
+      if (!container) return;
+
+      const room = rooms[roomId];
+      container.innerHTML = room.messages.map(msg => {
+        const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const isAgent = msg.isAgent;
+        const initial = msg.displayName[0].toUpperCase();
+        const agentInfo = agents.find(a => msg.sender.includes(a.username));
+        const avatar = agentInfo ? agentInfo.name.split(' ')[0] : initial;
+
+        const replyContext = msg.replyTo
+          ? `<div class="message-reply-context"><span class="reply-to-name">${escHtml(msg.replyTo.name)}</span> ${escHtml(msg.replyTo.preview)}</div>`
+          : '';
+
+        return `
+          <div class="message">
+            <div class="message-avatar ${isAgent ? 'agent' : 'human'}">${isAgent ? avatar : initial}</div>
+            <div class="message-content">
+              ${replyContext}
+              <div class="message-header">
+                <span class="message-name ${isAgent ? 'agent-name' : ''}">${escHtml(msg.displayName)}</span>
+                ${isAgent ? '<span class="message-tag">AGENT</span>' : ''}
+                <span class="message-time">${time}</span>
+              </div>
+              <div class="message-body">${formatMessage(msg.body)}</div>
+            </div>
+            <div class="message-actions">
+              <button class="msg-action-btn" onclick="setReply('${escHtml(msg.displayName)}', '${escAttr(msg.body)}', ${msg.isAgent})" title="Reply">↩</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function formatMessage(text) {
+      // Simple markdown-ish rendering
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`(.+?)`/g, '<code>$1</code>')
+        .replace(/^---$/gm, '<hr>')
+        .replace(/\n/g, '<br>');
+    }
+
+    // --- Actions ---
+    async function sendMessage() {
+      const input = document.getElementById('msgInput');
+      let body = input.value.trim();
+      if (!body || !currentRoomId) return;
+
+      // If replying, prepend agent @mention invisibly — the UI shows the reply context
+      let replyMeta = null;
+      if (replyTo) {
+        if (replyTo.isAgent) {
+          const agentName = replyTo.name.toLowerCase();
+          if (!body.toLowerCase().includes(`@${agentName}`)) {
+            body = `@${agentName} ${body}`;
+          }
+        }
+        replyMeta = { name: replyTo.name, preview: replyTo.body.substring(0, 100) };
+      }
+
+      input.value = '';
+      input.style.height = 'auto';
+      clearReply();
+
+      const txnId = Date.now();
+      await matrixApi('PUT', `/rooms/${currentRoomId}/send/m.room.message/${txnId}`, {
+        msgtype: 'm.text',
+        body: body,
+      });
+    }
+
+    let acSelected = 0;
+    let acVisible = false;
+    let acMatches = [];
+    let acStartPos = -1;
+
+    function handleInput(e) {
+      const ta = e.target;
+      const val = ta.value;
+      const cursor = ta.selectionStart;
+
+      // Find @ before cursor
+      const before = val.substring(0, cursor);
+      const atIdx = before.lastIndexOf('@');
+
+      if (atIdx >= 0 && (atIdx === 0 || before[atIdx - 1] === ' ' || before[atIdx - 1] === '\n')) {
+        const query = before.substring(atIdx + 1).toLowerCase();
+        acStartPos = atIdx;
+
+        // Match agents
+        acMatches = agents.filter(a => {
+          const name = a.name.replace(/[^\w\s]/g, '').trim().toLowerCase();
+          const uname = a.username.toLowerCase();
+          return name.includes(query) || uname.includes(query) || query === '';
+        });
+
+        if (acMatches.length > 0) {
+          showAutocomplete(acMatches);
+          return;
+        }
+      }
+
+      hideAutocomplete();
+    }
+
+    function showAutocomplete(matches) {
+      const ac = document.getElementById('autocomplete');
+      if (!ac) return;
+      acVisible = true;
+      acSelected = 0;
+
+      ac.innerHTML = matches.map((a, i) =>
+        `<div class="autocomplete-item ${i === 0 ? 'selected' : ''}" onmousedown="selectAgent(${i})">
+          <span class="ac-avatar">${a.name.split(' ')[0]}</span>
+          <span class="ac-name">${a.name.split(' ').slice(1).join(' ')}</span>
+          <span class="ac-hint">@${a.username}</span>
+        </div>`
+      ).join('');
+      ac.classList.add('active');
+    }
+
+    function hideAutocomplete() {
+      const ac = document.getElementById('autocomplete');
+      if (ac) { ac.classList.remove('active'); ac.innerHTML = ''; }
+      acVisible = false;
+      acMatches = [];
+    }
+
+    function selectAgent(idx) {
+      const agent = acMatches[idx];
+      if (!agent) return;
+      const ta = document.getElementById('msgInput');
+      const val = ta.value;
+      const agentLabel = agent.name.replace(/[^\w\s]/g, '').trim().toLowerCase();
+      const newVal = val.substring(0, acStartPos) + '@' + agentLabel + ' ' + val.substring(ta.selectionStart);
+      ta.value = newVal;
+      ta.selectionStart = ta.selectionEnd = acStartPos + agentLabel.length + 2;
+      ta.focus();
+      hideAutocomplete();
+    }
+
+    function handleKey(e) {
+      // Autocomplete navigation
+      if (acVisible) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          acSelected = Math.min(acSelected + 1, acMatches.length - 1);
+          updateAcSelection();
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          acSelected = Math.max(acSelected - 1, 0);
+          updateAcSelection();
+          return;
+        }
+        if (e.key === 'Tab' || (e.key === 'Enter' && acVisible)) {
+          e.preventDefault();
+          selectAgent(acSelected);
+          return;
+        }
+        if (e.key === 'Escape') {
+          hideAutocomplete();
+          return;
+        }
+      }
+
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+      // Auto-resize
+      const ta = e.target;
+      setTimeout(() => {
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+      }, 0);
+    }
+
+    function updateAcSelection() {
+      const items = document.querySelectorAll('.autocomplete-item');
+      items.forEach((el, i) => el.classList.toggle('selected', i === acSelected));
+    }
+
+    // --- Room creation ---
+    function showNewRoomModal() {
+      const checkboxes = document.getElementById('agentCheckboxes');
+      checkboxes.innerHTML = agents.map(a => `
+        <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:14px;cursor:pointer">
+          <input type="checkbox" value="${a.username}" checked> ${a.name}
+        </label>
+      `).join('');
+      document.getElementById('newRoomModal').classList.add('active');
+      document.getElementById('newRoomName').focus();
+    }
+
+    function hideNewRoomModal() {
+      document.getElementById('newRoomModal').classList.remove('active');
+    }
+
+    async function createRoom() {
+      const name = document.getElementById('newRoomName').value.trim();
+      if (!name) return;
+
+      const checked = [...document.querySelectorAll('#agentCheckboxes input:checked')];
+      const invites = checked.map(cb => `@${cb.value}:${DOMAIN}`);
+
+      const data = await matrixApi('POST', '/createRoom', {
+        name: name,
+        preset: 'public_chat',
+        invite: invites,
+        initial_state: [],
+      });
+
+      hideNewRoomModal();
+
+      if (data.room_id) {
+        rooms[data.room_id] = { name, messages: [], members: ['admin', ...invites.map(i => i.split(':')[0].slice(1))] };
+        renderRooms();
+        openRoom(data.room_id);
+      }
+    }
+
+    // --- Add Agent ---
+    let selectedEmoji = '🤖';
+
+    function pickEmoji(el) {
+      document.querySelectorAll('.emoji-pick').forEach(e => e.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedEmoji = el.textContent;
+      updateAgentPreview();
+    }
+
+    function showAddAgentModal() {
+      document.getElementById('addAgentModal').classList.add('active');
+      document.getElementById('agentName').focus();
+      // Live preview
+      ['agentName','agentRole','agentRules','agentTrigger','agentApproval'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updateAgentPreview);
+      });
+      ['toolEmail','toolSearch'].forEach(id => {
+        document.getElementById(id).addEventListener('change', updateAgentPreview);
+      });
+      updateAgentPreview();
+    }
+
+    function hideAddAgentModal() {
+      document.getElementById('addAgentModal').classList.remove('active');
+    }
+
+    function buildAgentMd() {
+      const name = document.getElementById('agentName').value.trim() || 'My Agent';
+      const role = document.getElementById('agentRole').value.trim() || 'A helpful assistant.';
+      const rules = document.getElementById('agentRules').value.trim();
+      const trigger = document.getElementById('agentTrigger').value;
+      const approval = document.getElementById('agentApproval').value;
+      const tools = [];
+      if (document.getElementById('toolEmail').checked) tools.push('email');
+      if (document.getElementById('toolSearch').checked) tools.push('web_search');
+
+      let md = `---\nname: ${name}\navatar: "${selectedEmoji}"\nauthor: admin\ntrigger: ${trigger}\ntools:\n`;
+      if (tools.length) {
+        tools.forEach(t => md += `  - ${t}\n`);
+      } else {
+        md += '  []\n';
+      }
+      md += `approval: ${approval}\n---\n\n## Role\n${role}\n`;
+
+      if (rules) {
+        md += `\n## Rules\n`;
+        rules.split('\n').filter(r => r.trim()).forEach(r => {
+          md += `- ${r.trim()}\n`;
+        });
+      }
+
+      return { name, md };
+    }
+
+    function updateAgentPreview() {
+      const { md } = buildAgentMd();
+      const pre = document.getElementById('agentPreview');
+      if (pre) pre.textContent = md;
+    }
+
+    async function createAgent() {
+      const { name, md } = buildAgentMd();
+      const filename = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+      try {
+        const resp = await fetch('http://localhost:3001/api/agents/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename, content: md }),
+        });
+        const data = await resp.json();
+        if (data.status === 'ok') {
+          hideAddAgentModal();
+          // Add to local agents list
+          agents.push({
+            username: filename,
+            name: `${selectedEmoji} ${name}`,
+          });
+          renderAgents();
+          alert(`Agent "${name}" created! It will be online after runtime restart.\n\nRestart with: pkill -f agent_runtime && ./run.sh`);
+        } else {
+          alert('Error: ' + (data.error || 'Unknown error'));
+        }
+      } catch (e) {
+        alert('Error creating agent: ' + e.message);
+      }
+    }
+
+    // --- Reply ---
+    let replyTo = null;
+
+    function setReply(name, body, isAgent) {
+      replyTo = { name, body: body.replace(/\\n/g, '\n'), isAgent };
+      const bar = document.getElementById('replyBar');
+      document.getElementById('replyName').textContent = name;
+      document.getElementById('replyPreview').textContent = body.substring(0, 80).replace(/\\n/g, ' ');
+      bar.classList.add('active');
+      document.getElementById('msgInput').focus();
+    }
+
+    function clearReply() {
+      replyTo = null;
+      const bar = document.getElementById('replyBar');
+      if (bar) bar.classList.remove('active');
+    }
+
+    function escHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function escAttr(s) {
+      return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+    }
+
+    // Start
+    login();
+  </script>
+</body>
+</html>

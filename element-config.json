@@ -1,0 +1,11 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "http://localhost:8008",
+      "server_name": "byoa.local"
+    }
+  },
+  "brand": "Vanpier",
+  "disable_guests": true,
+  "disable_3pid_login": true
+}

@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: byoa-synapse
+    volumes:
+      - ./synapse/data:/data
+    environment:
+      - SYNAPSE_SERVER_NAME=byoa.local
+      - SYNAPSE_REPORT_STATS=no
+    ports:
+      - "8008:8008"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8008/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  element:
+    image: vectorim/element-web:latest
+    container_name: byoa-element
+    volumes:
+      - ./element-config.json:/app/config.json
+    ports:
+      - "8090:80"
+    depends_on:
+      synapse:
+        condition: service_healthy

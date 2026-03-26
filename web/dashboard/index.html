@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vanpier — Admin Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0f0f0f; --surface: #1a1a1a; --surface2: #242424;
+      --border: #2a2a2a; --text: #e0e0e0; --text-dim: #888;
+      --accent: #6c5ce7; --green: #00b894; --red: #e74c3c;
+      --yellow: #fdcb6e; --blue: #74b9ff;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg); color: var(--text);
+    }
+
+    .header {
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .header .subtitle { color: var(--text-dim); font-size: 13px; }
+
+    .tabs {
+      display: flex; gap: 0; border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+    }
+    .tab {
+      padding: 12px 20px; cursor: pointer; font-size: 14px;
+      color: var(--text-dim); border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-color: var(--accent); }
+
+    .content { padding: 24px 32px; max-width: 1200px; }
+
+    /* Stats cards */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px; margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px 20px;
+    }
+    .stat-card .label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+    .stat-card .value.green { color: var(--green); }
+    .stat-card .value.blue { color: var(--blue); }
+    .stat-card .value.red { color: var(--red); }
+
+    /* Agent cards */
+    .agent-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px; margin-bottom: 24px;
+    }
+    .agent-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 20px; transition: border-color 0.15s;
+    }
+    .agent-card:hover { border-color: var(--accent); }
+    .agent-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .agent-card-header .name {
+      display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600;
+    }
+    .agent-card-header .avatar { font-size: 24px; }
+    .agent-status {
+      padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;
+    }
+    .agent-status.online { background: rgba(0,184,148,0.15); color: var(--green); }
+    .agent-status.disabled { background: rgba(231,76,60,0.15); color: var(--red); }
+
+    .agent-meta { display: flex; gap: 16px; margin-bottom: 12px; }
+    .agent-meta .meta-item {
+      font-size: 12px; color: var(--text-dim);
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    .agent-stats {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+      background: var(--surface2); border-radius: 8px; padding: 10px;
+      margin-bottom: 12px;
+    }
+    .agent-stats .mini-stat { text-align: center; }
+    .agent-stats .mini-stat .num { font-size: 18px; font-weight: 600; }
+    .agent-stats .mini-stat .lbl { font-size: 10px; color: var(--text-dim); text-transform: uppercase; }
+
+    .agent-actions { display: flex; gap: 8px; }
+    .btn {
+      padding: 6px 14px; border: none; border-radius: 6px;
+      cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.15s;
+    }
+    .btn-danger { background: rgba(231,76,60,0.15); color: var(--red); }
+    .btn-danger:hover { background: rgba(231,76,60,0.3); }
+    .btn-success { background: rgba(0,184,148,0.15); color: var(--green); }
+    .btn-success:hover { background: rgba(0,184,148,0.3); }
+    .btn-ghost { background: var(--surface2); color: var(--text-dim); }
+    .btn-ghost:hover { color: var(--text); }
+
+    /* Audit log */
+    .audit-table {
+      width: 100%; border-collapse: collapse;
+      background: var(--surface); border-radius: 10px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .audit-table th {
+      text-align: left; padding: 10px 16px; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--text-dim); background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .audit-table td {
+      padding: 8px 16px; font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    .audit-table tr:last-child td { border-bottom: none; }
+    .audit-table tr:hover { background: var(--surface2); }
+
+    .event-badge {
+      padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;
+    }
+    .event-badge.message { background: rgba(116,185,255,0.15); color: var(--blue); }
+    .event-badge.response { background: rgba(0,184,148,0.15); color: var(--green); }
+    .event-badge.tool_call { background: rgba(253,203,110,0.15); color: var(--yellow); }
+    .event-badge.error { background: rgba(231,76,60,0.15); color: var(--red); }
+    .event-badge.approval { background: rgba(108,92,231,0.15); color: var(--accent); }
+
+    .filter-bar {
+      display: flex; gap: 8px; margin-bottom: 16px; align-items: center;
+    }
+    .filter-bar select {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); padding: 6px 10px; border-radius: 6px; font-size: 13px;
+    }
+    .auto-refresh {
+      margin-left: auto; font-size: 12px; color: var(--text-dim);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .pulse {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .detail-cell { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>Vanpier Admin</h1>
+      <div class="subtitle">Agent Dashboard & Audit Log</div>
+    </div>
+    <a href="http://localhost:3000" class="btn btn-ghost" style="text-decoration:none">← Back to Chat</a>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('overview')">Overview</div>
+    <div class="tab" onclick="showTab('agents')">Agents</div>
+    <div class="tab" onclick="showTab('audit')">Audit Log</div>
+  </div>
+
+  <div class="content" id="content"></div>
+
+  <script>
+    const API = 'http://localhost:3001/api';
+    let currentTab = 'overview';
+
+    async function fetchJson(path) {
+      const resp = await fetch(`${API}${path}`);
+      return resp.json();
+    }
+
+    function showTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab')[['overview','agents','audit'].indexOf(tab)].classList.add('active');
+      render();
+    }
+
+    async function render() {
+      if (currentTab === 'overview') await renderOverview();
+      else if (currentTab === 'agents') await renderAgents();
+      else if (currentTab === 'audit') await renderAudit();
+    }
+
+    async function renderOverview() {
+      const [agents, stats, audit] = await Promise.all([
+        fetchJson('/agents'),
+        fetchJson('/stats'),
+        fetchJson('/audit?limit=10'),
+      ]);
+
+      const totalMsgs = Object.values(stats).reduce((s, a) => s + a.messages, 0);
+      const totalTools = Object.values(stats).reduce((s, a) => s + a.tool_calls, 0);
+      const totalErrors = Object.values(stats).reduce((s, a) => s + a.errors, 0);
+
+      document.getElementById('content').innerHTML = `
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="label">Agents Online</div>
+            <div class="value green">${agents.filter(a => a.enabled).length}/${agents.length}</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Messages Handled</div>
+            <div class="value blue">${totalMsgs}</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Tool Calls</div>
+            <div class="value">${totalTools}</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Errors</div>
+            <div class="value ${totalErrors > 0 ? 'red' : ''}">${totalErrors}</div>
+          </div>
+        </div>
+
+        <h3 style="margin-bottom:12px">Agents</h3>
+        <div class="agent-grid">
+          ${agents.map(a => {
+            const s = stats[a.name] || { messages: 0, tool_calls: 0, errors: 0 };
+            return `
+              <div class="agent-card">
+                <div class="agent-card-header">
+                  <div class="name"><span class="avatar">${a.avatar}</span> ${a.name}</div>
+                  <span class="agent-status ${a.enabled ? 'online' : 'disabled'}">${a.enabled ? 'Online' : 'Disabled'}</span>
+                </div>
+                <div class="agent-stats">
+                  <div class="mini-stat"><div class="num">${s.messages}</div><div class="lbl">Messages</div></div>
+                  <div class="mini-stat"><div class="num">${s.tool_calls}</div><div class="lbl">Tool Calls</div></div>
+                  <div class="mini-stat"><div class="num">${s.errors}</div><div class="lbl">Errors</div></div>
+                </div>
+                <div class="agent-meta">
+                  <span class="meta-item">Trigger: ${a.trigger}</span>
+                  <span class="meta-item">Approval: ${a.approval}</span>
+                  <span class="meta-item">Tools: ${(a.tools || []).join(', ') || 'none'}</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <h3 style="margin-bottom:12px">Recent Activity</h3>
+        ${renderAuditTable(audit)}
+      `;
+    }
+
+    async function renderAgents() {
+      const [agents, stats] = await Promise.all([
+        fetchJson('/agents'),
+        fetchJson('/stats'),
+      ]);
+
+      document.getElementById('content').innerHTML = `
+        <div class="agent-grid">
+          ${agents.map(a => {
+            const s = stats[a.name] || { messages: 0, tool_calls: 0, errors: 0, approvals_approved: 0, approvals_rejected: 0 };
+            const lastActive = s.last_active ? new Date(s.last_active * 1000).toLocaleTimeString() : 'Never';
+            return `
+              <div class="agent-card">
+                <div class="agent-card-header">
+                  <div class="name"><span class="avatar">${a.avatar}</span> ${a.name}</div>
+                  <span class="agent-status ${a.enabled ? 'online' : 'disabled'}">${a.enabled ? 'Online' : 'Disabled'}</span>
+                </div>
+                <div class="agent-stats">
+                  <div class="mini-stat"><div class="num">${s.messages}</div><div class="lbl">Messages</div></div>
+                  <div class="mini-stat"><div class="num">${s.tool_calls}</div><div class="lbl">Tool Calls</div></div>
+                  <div class="mini-stat"><div class="num">${s.errors}</div><div class="lbl">Errors</div></div>
+                </div>
+                <div class="agent-meta">
+                  <span class="meta-item">Trigger: ${a.trigger}</span>
+                  <span class="meta-item">Approval: ${a.approval}</span>
+                  <span class="meta-item">Tools: ${(a.tools || []).join(', ') || 'none'}</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">
+                  Last active: ${lastActive} · Source: ${a.source_file}
+                </div>
+                <div class="agent-actions">
+                  ${a.enabled
+                    ? `<button class="btn btn-danger" onclick="toggleAgent('${a.username}', false)">Disable</button>`
+                    : `<button class="btn btn-success" onclick="toggleAgent('${a.username}', true)">Enable</button>`
+                  }
+                  <button class="btn btn-ghost" onclick="showTab('audit')">View Logs</button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    async function renderAudit() {
+      const audit = await fetchJson('/audit?limit=100');
+      document.getElementById('content').innerHTML = `
+        <div class="filter-bar">
+          <select onchange="filterAudit(this.value)" id="agentFilter">
+            <option value="">All Agents</option>
+          </select>
+          <select onchange="filterAuditType(this.value)" id="typeFilter">
+            <option value="">All Events</option>
+            <option value="message">Messages</option>
+            <option value="response">Responses</option>
+            <option value="tool_call">Tool Calls</option>
+            <option value="error">Errors</option>
+            <option value="approval">Approvals</option>
+          </select>
+          <div class="auto-refresh"><div class="pulse"></div> Live</div>
+        </div>
+        ${renderAuditTable(audit)}
+      `;
+    }
+
+    function renderAuditTable(entries) {
+      if (!entries.length) return '<div style="color:var(--text-dim);padding:20px">No events yet. Start chatting with agents.</div>';
+      return `
+        <table class="audit-table">
+          <thead><tr>
+            <th>Time</th><th>Agent</th><th>Event</th><th>User</th><th>Detail</th>
+          </tr></thead>
+          <tbody>
+            ${entries.reverse().map(e => `
+              <tr>
+                <td>${new Date(e.timestamp * 1000).toLocaleTimeString()}</td>
+                <td>${e.agent_name}</td>
+                <td><span class="event-badge ${e.event_type}">${e.event_type}</span></td>
+                <td>${e.user}</td>
+                <td class="detail-cell" title="${esc(e.detail)}">${esc(e.detail)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    async function toggleAgent(username, enable) {
+      await fetch(`${API}/agents/${username}/${enable ? 'enable' : 'disable'}`, { method: 'POST' });
+      render();
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // Auto-refresh every 5 seconds
+    render();
+    setInterval(render, 5000);
+  </script>
+</body>
+</html>

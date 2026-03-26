@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""BYOA CLI - Manage your agents."""
+
+import sys
+import os
+from pathlib import Path
+
+AGENTS_DIR = os.environ.get("AGENTS_DIR", os.path.join(os.path.dirname(__file__), "agents"))
+
+
+def cmd_list():
+    """List all agents."""
+    from agent_runtime.md_parser import load_all_agents
+    configs = load_all_agents(AGENTS_DIR)
+    if not configs:
+        print("No agents found. Add .md files to agents/")
+        return
+    print(f"\n{'Name':<20} {'Trigger':<15} {'Approval':<12} {'File'}")
+    print("-" * 70)
+    for c in configs:
+        print(f"{c.display_name:<20} {c.trigger:<15} {c.approval:<12} {c.source_file}")
+
+
+def cmd_add():
+    """Create a new agent from a template."""
+    if len(sys.argv) < 3:
+        print("Usage: byoa add <agent-name>")
+        return
+
+    name = sys.argv[2]
+    filename = name.lower().replace(" ", "-") + ".md"
+    filepath = Path(AGENTS_DIR) / filename
+
+    if filepath.exists():
+        print(f"Agent already exists: {filepath}")
+        return
+
+    template = f"""---
+name: {name}
+avatar: "\\U0001F916"
+trigger: mention
+tools: []
+approval: required
+---
+
+## Role
+Describe what this agent does.
+
+## Tasks
+- Task 1
+- Task 2
+
+## Rules
+- Rule 1
+- Rule 2
+"""
+    filepath.write_text(template)
+    print(f"Created {filepath}")
+    print(f"Edit it to customize your agent, then restart the runtime.")
+
+
+def cmd_validate():
+    """Validate all agent .md files."""
+    from agent_runtime.md_parser import load_all_agents
+    configs = load_all_agents(AGENTS_DIR)
+    print(f"\n{len(configs)} agent(s) valid.")
+
+
+def cmd_help():
+    print("BYOA - Bring Your Own Agent")
+    print()
+    print("Commands:")
+    print("  byoa list       List all agents")
+    print("  byoa add <name> Create a new agent from template")
+    print("  byoa validate   Validate all agent .md files")
+    print("  byoa run        Start the agent runtime")
+    print("  byoa help       Show this help")
+
+
+def main():
+    if len(sys.argv) < 2:
+        cmd_help()
+        return
+
+    commands = {
+        "list": cmd_list,
+        "add": cmd_add,
+        "validate": cmd_validate,
+        "run": lambda: os.execvp("bash", ["bash", os.path.join(os.path.dirname(__file__), "run.sh")]),
+        "help": cmd_help,
+    }
+
+    cmd = sys.argv[1]
+    if cmd in commands:
+        commands[cmd]()
+    else:
+        print(f"Unknown command: {cmd}")
+        cmd_help()
+
+
+if __name__ == "__main__":
+    main()
