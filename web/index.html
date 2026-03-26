@@ -851,6 +851,7 @@
 
     function openRoom(roomId) {
       currentRoomId = roomId;
+      currentTaskId = null;
       renderRooms();
       renderChat(roomId);
     }

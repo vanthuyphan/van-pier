@@ -7,6 +7,7 @@ from .approval import ApprovalManager, ApprovalStatus
 from .tools import TOOL_DEFINITIONS, execute_tool
 from .memory import AgentMemory
 from .mcp_client import MCPClient
+from .hooks import HookEngine, HookContext, Decision, create_default_engine
 
 
 class Agent:
@@ -16,6 +17,7 @@ class Agent:
         self.client = anthropic.AsyncAnthropic()
         self.memory = AgentMemory(config.name)  # Only for facts/knowledge, NOT conversations
         self.mcp = MCPClient()
+        self.hooks = create_default_engine()
         self.pending_tool_calls: dict[str, dict] = {}
         # In-memory conversation cache (Matrix is the source of truth)
         self._history: dict[str, list] = {}
@@ -104,6 +106,36 @@ class Agent:
         for tool_block in tool_use_blocks:
             tool_name = tool_block.name
             tool_input = tool_block.input
+
+            # === HOOK GATE — runs BEFORE any tool execution ===
+            hook_ctx = HookContext(
+                agent_name=self.config.name,
+                agent_username=self.config.username,
+                tool_name=tool_name,
+                tool_input=dict(tool_input),
+                user=user_name,
+                room_id=room_id,
+            )
+            hook_result = self.hooks.check(hook_ctx)
+
+            if hook_result.decision == Decision.BLOCK:
+                replies.append(f"**Blocked:** {hook_result.reason}")
+                continue
+
+            if hook_result.decision == Decision.REQUIRE_APPROVAL:
+                action_id = f"hook-{id(tool_block)}"
+                self.pending_tool_calls[action_id] = {
+                    "tool_name": tool_name,
+                    "tool_input": hook_ctx.tool_input,
+                    "room_id": room_id,
+                }
+                replies.append(f"**Approval required:** {hook_result.reason}")
+                replies.append(f"Reply **`send`** to approve, or tell me what to change.")
+                continue
+
+            # Use potentially modified input from hooks
+            tool_input = hook_ctx.tool_input
+            # === END HOOK GATE ===
 
             if tool_name == "send_email":
                 draft = (
