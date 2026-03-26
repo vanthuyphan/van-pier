@@ -154,6 +154,38 @@
     }
 
     .detail-cell { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Tool policy */
+    .tool-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+    }
+    .tool-row:last-child { border-bottom: none; }
+    .tool-row:hover { background: var(--surface2); }
+    .tool-name { font-weight: 500; font-size: 14px; min-width: 280px; }
+    .tool-desc { font-size: 12px; color: var(--text-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tool-agents { font-size: 11px; color: var(--text-dim); min-width: 100px; }
+
+    .policy-toggle {
+      display: flex; gap: 0; border-radius: 6px; overflow: hidden;
+      border: 1px solid var(--border); flex-shrink: 0;
+    }
+    .policy-btn {
+      padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer;
+      border: none; background: var(--surface2); color: var(--text-dim);
+      transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .policy-btn:hover { color: var(--text); }
+    .policy-btn.active-allow { background: rgba(0,184,148,0.2); color: var(--green); }
+    .policy-btn.active-approve { background: rgba(253,203,110,0.2); color: var(--yellow); }
+    .policy-btn.active-deny { background: rgba(231,76,60,0.2); color: var(--red); }
+
+    .save-bar {
+      position: sticky; bottom: 0; background: var(--surface);
+      border-top: 1px solid var(--border); padding: 12px 16px;
+      display: none; justify-content: space-between; align-items: center;
+    }
+    .save-bar.visible { display: flex; }
   </style>
 </head>
 <body>
@@ -168,6 +200,7 @@
   <div class="tabs">
     <div class="tab active" onclick="showTab('overview')">Overview</div>
     <div class="tab" onclick="showTab('agents')">Agents</div>
+    <div class="tab" onclick="showTab('tools')">Tools & Policy</div>
     <div class="tab" onclick="showTab('audit')">Audit Log</div>
   </div>
 
@@ -182,16 +215,21 @@
       return resp.json();
     }
 
+    let policyDirty = false;
+    let currentPolicy = {};
+    let allTools = [];
+
     function showTab(tab) {
       currentTab = tab;
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab')[['overview','agents','audit'].indexOf(tab)].classList.add('active');
+      document.querySelectorAll('.tab')[['overview','agents','tools','audit'].indexOf(tab)].classList.add('active');
       render();
     }
 
     async function render() {
       if (currentTab === 'overview') await renderOverview();
       else if (currentTab === 'agents') await renderAgents();
+      else if (currentTab === 'tools') await renderTools();
       else if (currentTab === 'audit') await renderAudit();
     }
 
@@ -298,6 +336,96 @@
           }).join('')}
         </div>
       `;
+    }
+
+    async function renderTools() {
+      const [tools, policy] = await Promise.all([
+        fetchJson('/tools'),
+        fetchJson('/policy'),
+      ]);
+      allTools = tools;
+      currentPolicy = policy;
+
+      const blocked = policy.blocked || [];
+      const requireApproval = policy.require_approval || [];
+
+      function getStatus(toolName) {
+        if (blocked.includes(toolName)) return 'deny';
+        if (requireApproval.includes(toolName)) return 'approve';
+        return 'allow';
+      }
+
+      document.getElementById('content').innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div>
+            <h3 style="margin-bottom:4px">Tool Permissions</h3>
+            <p style="font-size:13px;color:var(--text-dim)">${tools.length} tools across all agents. Set policy for each tool.</p>
+          </div>
+          <div style="display:flex;gap:12px;font-size:12px">
+            <span><span style="color:var(--green)">Allow</span> — runs without asking</span>
+            <span><span style="color:var(--yellow)">Approve</span> — requires human approval</span>
+            <span><span style="color:var(--red)">Deny</span> — permanently blocked</span>
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+          <div class="tool-row" style="background:var(--surface2)">
+            <div class="tool-name" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim);font-weight:600">Tool</div>
+            <div class="tool-desc" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim);font-weight:600">Description</div>
+            <div class="tool-agents" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim);font-weight:600">Agents</div>
+            <div style="min-width:180px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim);font-weight:600;text-align:center">Policy</div>
+          </div>
+          ${tools.map(t => {
+            const status = getStatus(t.name);
+            return `
+              <div class="tool-row" id="tool-${t.name.replace(/[^a-zA-Z0-9]/g, '_')}">
+                <div class="tool-name">${esc(t.name)}</div>
+                <div class="tool-desc" title="${esc(t.description)}">${esc(t.description).substring(0, 60)}</div>
+                <div class="tool-agents">${t.agents.map(a => '@' + a).join(', ')}</div>
+                <div class="policy-toggle">
+                  <button class="policy-btn ${status === 'allow' ? 'active-allow' : ''}" onclick="setToolPolicy('${t.name}', 'allow')">Allow</button>
+                  <button class="policy-btn ${status === 'approve' ? 'active-approve' : ''}" onclick="setToolPolicy('${t.name}', 'approve')">Approve</button>
+                  <button class="policy-btn ${status === 'deny' ? 'active-deny' : ''}" onclick="setToolPolicy('${t.name}', 'deny')">Deny</button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <div class="save-bar ${policyDirty ? 'visible' : ''}" id="saveBar">
+          <span style="font-size:13px;color:var(--yellow)">Unsaved changes</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn" style="background:var(--surface2);color:var(--text-dim)" onclick="renderTools()">Discard</button>
+            <button class="btn" style="background:var(--green);color:white;font-weight:600" onclick="savePolicy()">Save Policy</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function setToolPolicy(toolName, level) {
+      if (!currentPolicy.blocked) currentPolicy.blocked = [];
+      if (!currentPolicy.require_approval) currentPolicy.require_approval = [];
+
+      // Remove from both lists
+      currentPolicy.blocked = currentPolicy.blocked.filter(t => t !== toolName);
+      currentPolicy.require_approval = currentPolicy.require_approval.filter(t => t !== toolName);
+
+      // Add to the right list
+      if (level === 'deny') currentPolicy.blocked.push(toolName);
+      if (level === 'approve') currentPolicy.require_approval.push(toolName);
+
+      policyDirty = true;
+      renderTools();
+    }
+
+    async function savePolicy() {
+      await fetch(`${API}/policy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentPolicy),
+      });
+      policyDirty = false;
+      renderTools();
     }
 
     async function renderAudit() {

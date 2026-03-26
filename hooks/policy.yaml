@@ -1,0 +1,44 @@
+# Vanpier Hook Policy
+# Central config for all hook rules. Edit this file, restart to apply.
+
+# Actions that are ALWAYS BLOCKED — no override, no approval
+blocked:
+  - delete_file
+  - remove_file
+  - mcp_filesystem_delete
+  - mcp_github_delete_repository
+
+# Actions that REQUIRE HUMAN APPROVAL before execution
+require_approval:
+  - send_email
+  - mcp_gmail_send_email
+  - mcp_gmail_send_message
+  - mcp_slack_post_message
+  - mcp_slack_send_message
+  - mcp_jira_create_issue
+  - mcp_jira_update_issue
+  - mcp_github_create_issue
+  - mcp_github_create_pull_request
+  - mcp_github_add_issue_comment
+  - mcp_github_merge_pull_request
+  - mcp_github_delete_branch
+
+# Actions that are ALLOWED without approval (read-only, safe)
+# Everything not listed in blocked or require_approval is allowed by default
+
+# Rate limits
+rate_limit:
+  per_agent_per_tool: 20  # max calls per minute
+  global_per_minute: 100  # max total calls per minute across all agents
+
+# PII protection
+pii:
+  enabled: true
+  action: redact  # redact | block | warn
+  scan_tools:     # which outgoing tools to scan
+    - send_email
+    - mcp_gmail_send_email
+    - mcp_slack_post_message
+
+# Mass email protection
+max_email_recipients: 5

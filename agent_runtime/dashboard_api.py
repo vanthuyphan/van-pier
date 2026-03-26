@@ -31,6 +31,9 @@ class DashboardAPI:
         app.router.add_post('/api/agents/create', self.create_agent)
         app.router.add_post('/api/agents/{username}/disable', self.disable_agent)
         app.router.add_post('/api/agents/{username}/enable', self.enable_agent)
+        app.router.add_get('/api/policy', self.get_policy)
+        app.router.add_post('/api/policy', self.save_policy)
+        app.router.add_get('/api/tools', self.get_all_tools)
         app.router.add_get('/api/tasks', self.get_tasks)
         app.router.add_post('/api/tasks/create', self.create_task)
         app.router.add_post('/api/tasks/{task_id}/run', self.run_task)
@@ -111,6 +114,49 @@ class DashboardAPI:
             self.audit.log(username, "enabled", "", "admin", "Agent enabled by admin")
             return web.json_response({"status": "enabled"})
         return web.json_response({"error": "not found"}, status=404)
+
+    async def get_policy(self, request):
+        """Get current policy.yaml."""
+        import yaml
+        policy_path = Path("./hooks/policy.yaml")
+        if policy_path.exists():
+            policy = yaml.safe_load(policy_path.read_text()) or {}
+        else:
+            policy = {}
+        return web.json_response(policy)
+
+    async def save_policy(self, request):
+        """Save updated policy.yaml."""
+        import yaml
+        data = await request.json()
+        policy_path = Path("./hooks/policy.yaml")
+        policy_path.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False))
+        return web.json_response({"status": "saved"})
+
+    async def get_all_tools(self, request):
+        """Get all tools across all agents (built-in + MCP)."""
+        tools = []
+        seen = set()
+        for username, bot in self.runtime.bots.items():
+            agent = bot["agent"]
+            for tool_def in agent._get_tools():
+                name = tool_def["name"]
+                if name in seen:
+                    continue
+                seen.add(name)
+                tools.append({
+                    "name": name,
+                    "description": tool_def.get("description", ""),
+                    "agents": [username],
+                })
+        # Add agents to existing tools
+        for username, bot in self.runtime.bots.items():
+            agent = bot["agent"]
+            for tool_def in agent._get_tools():
+                for t in tools:
+                    if t["name"] == tool_def["name"] and username not in t["agents"]:
+                        t["agents"].append(username)
+        return web.json_response(tools)
 
     async def get_tasks(self, request):
         from dataclasses import asdict
