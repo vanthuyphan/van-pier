@@ -6,6 +6,7 @@ from .md_parser import AgentConfig
 from .approval import ApprovalManager, ApprovalStatus
 from .tools import TOOL_DEFINITIONS, execute_tool
 from .memory import AgentMemory
+from .mcp_client import MCPClient
 
 
 class Agent:
@@ -14,10 +15,20 @@ class Agent:
         self.approval = approval_manager
         self.client = anthropic.AsyncAnthropic()
         self.memory = AgentMemory(config.name)  # Only for facts/knowledge, NOT conversations
+        self.mcp = MCPClient()
         self.pending_tool_calls: dict[str, dict] = {}
         # In-memory conversation cache (Matrix is the source of truth)
         self._history: dict[str, list] = {}
         self._summaries: dict[str, str] = {}  # room_id -> summary of older messages
+
+    async def connect_mcp_servers(self):
+        """Connect to all MCP servers defined in the agent's config."""
+        for name, server_config in self.config.mcp_servers.items():
+            command = server_config.get("command", "")
+            args = server_config.get("args", [])
+            env = server_config.get("env", {})
+            if command:
+                await self.mcp.connect(name, command, args, env)
 
     def add_to_history(self, room_id: str, role: str, content: str):
         """Add a message to the in-memory history for a room."""
@@ -131,6 +142,16 @@ class Agent:
             elif tool_name == "recall":
                 pass
 
+            elif tool_name.startswith("mcp_"):
+                # MCP tool call
+                parsed = self.mcp.find_tool(tool_name)
+                if parsed:
+                    server_name, real_tool_name = parsed
+                    result = await self.mcp.call_tool(server_name, real_tool_name, tool_input)
+                    replies.append(result)
+                else:
+                    replies.append(f"Unknown MCP tool: {tool_name}")
+
         # Save assistant response to history
         if replies:
             combined = "\n\n".join(replies)
@@ -189,6 +210,10 @@ class Agent:
                 for defn in TOOL_DEFINITIONS:
                     if defn["name"] == m and defn not in available:
                         available.append(defn)
+
+        # Add MCP tools
+        available.extend(self.mcp.get_tool_definitions())
+
         return available
 
     def _build_system_prompt(self) -> str:

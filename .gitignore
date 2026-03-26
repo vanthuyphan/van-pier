@@ -7,3 +7,4 @@ audit/
 /tmp/
 *.log
 .env
+tasks/

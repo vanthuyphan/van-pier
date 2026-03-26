@@ -13,6 +13,7 @@ class AgentConfig:
     tools: list[str] = field(default_factory=list)
     approval: str = "required"  # "required", "not_required"
     author: str = ""
+    mcp_servers: dict = field(default_factory=dict)  # name -> {command, args, env}
     system_prompt: str = ""
     source_file: str = ""
 
@@ -48,6 +49,7 @@ def parse_agent_md(file_path: str | Path) -> AgentConfig:
         tools=frontmatter.get("tools", []),
         approval=frontmatter.get("approval", "required"),
         author=frontmatter.get("author", ""),
+        mcp_servers=frontmatter.get("mcp_servers", {}),
         system_prompt=body,
         source_file=str(path),
     )

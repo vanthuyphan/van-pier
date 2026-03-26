@@ -545,6 +545,12 @@
     <div class="room-list" id="roomList"></div>
     <div class="new-room-btn" onclick="showNewRoomModal()">+ New Room</div>
 
+    <div class="tasks-list">
+      <div class="sidebar-section">Tasks</div>
+      <div id="taskList" style="padding:0 8px"></div>
+      <div class="new-room-btn" onclick="showNewTaskModal()" style="margin:8px 16px">+ New Task</div>
+    </div>
+
     <div class="agents-list">
       <div class="sidebar-section">Agents Online</div>
       <div id="agentList"></div>
@@ -559,6 +565,21 @@
         <h2>Welcome to Vanpier</h2>
         <p>Create a room and invite agents to get started.</p>
       </div>
+    </div>
+  </div>
+
+  <!-- New Task Modal -->
+  <div class="modal-overlay" id="newTaskModal">
+    <div class="modal" style="width:500px">
+      <h3>New Task</h3>
+      <label>What do you need done?</label>
+      <textarea id="taskDescription" rows="4" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;resize:vertical;outline:none;margin-bottom:12px" placeholder="e.g. Research Acme Corp, draft an outreach email to their CEO, and have it reviewed for quality"></textarea>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Vanpier will break this into steps and assign the right agents automatically.</p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="hideNewTaskModal()">Cancel</button>
+        <button class="btn btn-primary" id="planTaskBtn" onclick="planTask()">Plan Task</button>
+      </div>
+      <div id="taskPlanPreview" style="margin-top:16px"></div>
     </div>
   </div>
 
@@ -1101,6 +1122,217 @@
         openRoom(data.room_id);
       }
     }
+
+    // --- Tasks ---
+    let allTasks = [];
+
+    function showNewTaskModal() {
+      document.getElementById('newTaskModal').classList.add('active');
+      document.getElementById('taskDescription').focus();
+      document.getElementById('taskPlanPreview').innerHTML = '';
+    }
+
+    function hideNewTaskModal() {
+      document.getElementById('newTaskModal').classList.remove('active');
+    }
+
+    async function planTask() {
+      const desc = document.getElementById('taskDescription').value.trim();
+      if (!desc) return;
+
+      const btn = document.getElementById('planTaskBtn');
+      btn.textContent = 'Planning...';
+      btn.disabled = true;
+
+      try {
+        const resp = await fetch('http://localhost:3001/api/tasks/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description: desc, room_id: currentRoomId || '' }),
+        });
+        const task = await resp.json();
+
+        if (task.error) {
+          document.getElementById('taskPlanPreview').innerHTML =
+            `<div style="color:var(--red)">Error: ${task.error}</div>`;
+          return;
+        }
+
+        const statusEmoji = { pending: '⬜', running: '🔄', completed: '✅', failed: '❌', waiting_approval: '⏸️' };
+        const stepsHtml = task.steps.map(s =>
+          `<div style="padding:6px 0;font-size:13px">
+            ${statusEmoji[s.status] || '⬜'} <strong>@${s.agent}</strong>: ${s.instruction}
+            ${s.depends_on.length ? `<span style="color:var(--text-dim)"> (after: ${s.depends_on.join(', ')})</span>` : ''}
+            ${s.requires_approval ? '<span style="color:var(--yellow)"> ⚠ needs approval</span>' : ''}
+          </div>`
+        ).join('');
+
+        document.getElementById('taskPlanPreview').innerHTML = `
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-top:8px">
+            <div style="font-weight:600;margin-bottom:8px">${task.title}</div>
+            ${stepsHtml}
+            <button class="btn btn-primary" style="margin-top:12px" onclick="runTask('${task.id}')">Run Task</button>
+          </div>
+        `;
+
+        allTasks.push(task);
+        renderTasks();
+      } catch (e) {
+        document.getElementById('taskPlanPreview').innerHTML =
+          `<div style="color:var(--red)">Error: ${e.message}</div>`;
+      } finally {
+        btn.textContent = 'Plan Task';
+        btn.disabled = false;
+      }
+    }
+
+    async function runTask(taskId) {
+      hideNewTaskModal();
+      await fetch(`http://localhost:3001/api/tasks/${taskId}/run`, { method: 'POST' });
+      refreshTasks();
+    }
+
+    async function refreshTasks() {
+      try {
+        const resp = await fetch('http://localhost:3001/api/tasks');
+        allTasks = await resp.json();
+        renderTasks();
+      } catch (e) {}
+    }
+
+    function renderTasks() {
+      const list = document.getElementById('taskList');
+      if (!list) return;
+      if (!allTasks.length) {
+        list.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:4px 12px">No tasks yet</div>';
+        return;
+      }
+      const emoji = { pending: '⬜', running: '🔄', completed: '✅', failed: '❌', waiting_approval: '⏸️', cancelled: '🚫' };
+      list.innerHTML = allTasks.slice(0, 10).map(t => `
+        <div class="room-item" style="font-size:13px;cursor:pointer" title="${t.description}" onclick="openTaskView('${t.id}')">
+          ${emoji[t.status] || '⬜'} ${t.title || 'Task'}
+          <span style="color:var(--text-dim);font-size:11px;margin-left:auto">${t.steps.filter(s => s.status === 'completed').length}/${t.steps.length}</span>
+        </div>
+      `).join('');
+    }
+
+    let currentTaskId = null;
+
+    function openTaskView(taskId) {
+      currentTaskId = taskId;
+      currentRoomId = null;
+      renderRooms();
+      renderTaskDetail(taskId);
+      // Auto-refresh this task
+    }
+
+    function renderTaskDetail(taskId) {
+      const task = allTasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const main = document.getElementById('mainArea');
+      const statusLabel = { pending: 'Pending', running: 'Running', completed: 'Completed', failed: 'Failed', waiting_approval: 'Waiting Approval', cancelled: 'Cancelled' };
+      const statusColor = { pending: 'var(--text-dim)', running: 'var(--blue)', completed: 'var(--green)', failed: 'var(--red)', waiting_approval: 'var(--yellow)', cancelled: 'var(--text-dim)' };
+      const stepEmoji = { pending: '⬜', running: '🔄', completed: '✅', failed: '❌', waiting_approval: '⏸️', skipped: '⏭️' };
+
+      const progressPct = task.steps.length ? Math.round((task.steps.filter(s => s.status === 'completed').length / task.steps.length) * 100) : 0;
+
+      main.innerHTML = `
+        <div class="chat-header">
+          <div>
+            <h2>${escHtml(task.title || 'Task')}</h2>
+            <span class="members" style="color:${statusColor[task.status] || 'var(--text-dim)'}">
+              ${statusLabel[task.status] || task.status} · ${task.steps.filter(s => s.status === 'completed').length}/${task.steps.length} steps
+            </span>
+          </div>
+          ${task.status === 'pending' ? `<button class="btn btn-primary" onclick="runTask('${task.id}')" style="padding:8px 20px">Run Task</button>` : ''}
+        </div>
+        <div class="messages" style="padding:24px">
+          <div style="margin-bottom:20px;color:var(--text-dim);font-size:14px">${escHtml(task.description)}</div>
+
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px">
+            <div style="height:4px;background:var(--surface2)">
+              <div style="height:100%;width:${progressPct}%;background:var(--green);transition:width 0.5s"></div>
+            </div>
+          </div>
+
+          ${task.steps.map((step, i) => {
+            const agentInfo = agents.find(a => a.username === step.agent);
+            const agentName = agentInfo ? agentInfo.name : step.agent;
+            const isActive = step.status === 'running';
+            const isDone = step.status === 'completed';
+            const isFailed = step.status === 'failed';
+            const isWaiting = step.status === 'waiting_approval';
+
+            return `
+              <div style="
+                background:var(--surface);
+                border:1px solid ${isActive ? 'var(--blue)' : isWaiting ? 'var(--yellow)' : isDone ? 'var(--green)' : isFailed ? 'var(--red)' : 'var(--border)'};
+                border-radius:10px;
+                padding:16px;
+                margin-bottom:12px;
+                ${isActive ? 'box-shadow:0 0 12px rgba(116,185,255,0.15)' : ''}
+              ">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                  <span style="font-size:18px">${stepEmoji[step.status] || '⬜'}</span>
+                  <span style="font-weight:600;font-size:14px">Step ${i + 1}</span>
+                  <span style="color:var(--green);font-size:13px">${agentName}</span>
+                  ${step.depends_on.length ? `<span style="font-size:11px;color:var(--text-dim)">depends on: ${step.depends_on.join(', ')}</span>` : ''}
+                  ${step.requires_approval ? '<span style="font-size:11px;color:var(--yellow)">needs approval</span>' : ''}
+                </div>
+                <div style="font-size:14px;margin-bottom:8px">${escHtml(step.instruction)}</div>
+                ${step.output ? `
+                  <div style="background:var(--surface2);border-radius:8px;padding:12px;font-size:13px;margin-top:8px;white-space:pre-wrap;max-height:200px;overflow-y:auto">${escHtml(step.output)}</div>
+                ` : ''}
+                ${isActive ? '<div style="font-size:12px;color:var(--blue);margin-top:8px">Working...</div>' : ''}
+                ${isWaiting ? `
+                  <div style="margin-top:10px;display:flex;gap:8px">
+                    <button class="btn btn-success" onclick="approveTaskStep('${task.id}', '${step.id}')">Approve</button>
+                    <button class="btn btn-danger" onclick="rejectTaskStep('${task.id}', '${step.id}')">Reject</button>
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+
+          <div style="font-size:12px;color:var(--text-dim);margin-top:16px">
+            Created by ${escHtml(task.created_by)} · ${new Date(task.created_at * 1000).toLocaleString()}
+            ${task.completed_at ? ` · Completed ${new Date(task.completed_at * 1000).toLocaleString()}` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    async function approveTaskStep(taskId, stepId) {
+      // Send approval via Matrix if there's a room
+      const task = allTasks.find(t => t.id === taskId);
+      if (task && task.room_id) {
+        await matrixApi('PUT', `/rooms/${task.room_id}/send/m.room.message/${Date.now()}`, {
+          msgtype: 'm.text',
+          body: `approve ${taskId} ${stepId}`,
+        });
+      }
+      setTimeout(refreshTasks, 1000);
+    }
+
+    async function rejectTaskStep(taskId, stepId) {
+      const task = allTasks.find(t => t.id === taskId);
+      if (task && task.room_id) {
+        await matrixApi('PUT', `/rooms/${task.room_id}/send/m.room.message/${Date.now()}`, {
+          msgtype: 'm.text',
+          body: `reject ${taskId} ${stepId}`,
+        });
+      }
+      setTimeout(refreshTasks, 1000);
+    }
+
+    // Refresh tasks periodically + update detail view
+    setInterval(() => {
+      refreshTasks().then(() => {
+        if (currentTaskId) renderTaskDetail(currentTaskId);
+      });
+    }, 3000);
+    setTimeout(refreshTasks, 2000);
 
     // --- Add Agent ---
     let selectedEmoji = '🤖';

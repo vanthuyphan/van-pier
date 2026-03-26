@@ -31,6 +31,9 @@ class DashboardAPI:
         app.router.add_post('/api/agents/create', self.create_agent)
         app.router.add_post('/api/agents/{username}/disable', self.disable_agent)
         app.router.add_post('/api/agents/{username}/enable', self.enable_agent)
+        app.router.add_get('/api/tasks', self.get_tasks)
+        app.router.add_post('/api/tasks/create', self.create_task)
+        app.router.add_post('/api/tasks/{task_id}/run', self.run_task)
 
         runner = web.AppRunner(app)
         await runner.setup()
@@ -108,3 +111,42 @@ class DashboardAPI:
             self.audit.log(username, "enabled", "", "admin", "Agent enabled by admin")
             return web.json_response({"status": "enabled"})
         return web.json_response({"error": "not found"}, status=404)
+
+    async def get_tasks(self, request):
+        from dataclasses import asdict
+        tasks = self.runtime.task_manager.list_tasks()
+        return web.json_response([asdict(t) for t in tasks])
+
+    async def create_task(self, request):
+        """Plan a new task via the API."""
+        try:
+            data = await request.json()
+            description = data.get("description", "")
+            room_id = data.get("room_id", "")
+
+            if not description:
+                return web.json_response({"error": "description required"}, status=400)
+
+            task = await self.runtime.task_runner.plan_task(description, room_id, "admin")
+            from dataclasses import asdict
+            return web.json_response(asdict(task))
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def run_task(self, request):
+        """Start running a planned task."""
+        task_id = request.match_info['task_id']
+        task = self.runtime.task_manager.get_task(task_id)
+        if not task:
+            return web.json_response({"error": "not found"}, status=404)
+
+        # Find an agent client to send messages
+        first_bot = next(iter(self.runtime.bots.values()))
+        client = first_bot["client"]
+
+        async def send_to_room(rid, text):
+            await client.room_send(rid, "m.room.message", {"msgtype": "m.text", "body": text})
+
+        import asyncio
+        asyncio.create_task(self.runtime.task_runner.run_task(task_id, send_to_room))
+        return web.json_response({"status": "started"})

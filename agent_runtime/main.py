@@ -18,6 +18,8 @@ from .agent import Agent
 from .approval import ApprovalManager
 from .audit import AuditLog
 from .dashboard_api import DashboardAPI
+from .tasks import TaskManager
+from .task_runner import TaskRunner
 
 HOMESERVER = os.environ.get("MATRIX_HOMESERVER", "http://localhost:8008")
 AGENTS_DIR = os.environ.get("AGENTS_DIR", "./agents")
@@ -29,6 +31,8 @@ class BYOARuntime:
         self.agents_dir = agents_dir
         self.approval_manager = ApprovalManager()
         self.audit = AuditLog()
+        self.task_manager = TaskManager()
+        self.task_runner = None  # initialized after agents are loaded
         self.bots: dict[str, dict] = {}  # username -> {client, agent}
 
     async def start(self):
@@ -50,6 +54,9 @@ class BYOARuntime:
         for config in configs:
             await self._start_agent(config)
             await asyncio.sleep(1)  # Small delay between registrations
+
+        # Initialize task runner
+        self.task_runner = TaskRunner(self.task_manager, self)
 
         # Start dashboard API
         dashboard = DashboardAPI(self.audit, self)
@@ -144,6 +151,12 @@ class BYOARuntime:
         await client.set_displayname(config.display_name)
 
         agent = Agent(config, self.approval_manager)
+
+        # Connect MCP servers if configured
+        if config.mcp_servers:
+            print(f"    Connecting MCP servers for {config.name}...")
+            await agent.connect_mcp_servers()
+
         self.bots[username] = {"client": client, "agent": agent}
 
         # Handle messages
@@ -240,8 +253,46 @@ class BYOARuntime:
         message = event.body
         print(f"  [{agent.config.name}] Message from {event.sender}: {message}")
 
-        # Handle approval commands globally
+        # Handle /task command — create and run a multi-agent task
+        if message.strip().startswith("/task "):
+            task_desc = message.strip()[6:]
+            sender_name = event.sender.split(":")[0].lstrip("@")
+
+            async def send_to_room(rid, text):
+                await client.room_send(rid, "m.room.message", {"msgtype": "m.text", "body": text})
+
+            try:
+                await send_to_room(room.room_id, f"🧠 Planning task: _{task_desc}_")
+                task = await self.task_runner.plan_task(task_desc, room.room_id, sender_name)
+                await send_to_room(room.room_id, self.task_manager.format_task_card(task))
+                await send_to_room(room.room_id, f"Reply `run {task.id}` to start, or `cancel {task.id}` to cancel.")
+            except Exception as e:
+                await send_to_room(room.room_id, f"❌ Failed to plan task: {e}")
+            return
+
+        # Handle run command — start a planned task
+        if message.strip().startswith("run "):
+            task_id = message.strip().split(" ", 1)[1].strip()
+            task = self.task_manager.get_task(task_id)
+            if task:
+                async def send_to_room(rid, text):
+                    await client.room_send(rid, "m.room.message", {"msgtype": "m.text", "body": text})
+                asyncio.create_task(self.task_runner.run_task(task_id, send_to_room))
+            return
+
+        # Handle task step approval
         if message.startswith("approve "):
+            parts = message.split()
+            if len(parts) == 3 and parts[1].startswith("task-"):
+                # Task step approval: approve task-xxx step-x
+                self.task_manager.approve_step(parts[1], parts[2])
+                await client.room_send(
+                    room.room_id,
+                    "m.room.message",
+                    {"msgtype": "m.text", "body": f"✅ Step `{parts[2]}` approved."},
+                )
+                return
+
             action_id = message.split(" ", 1)[1].strip()
             if self.approval_manager.approve(action_id):
                 await client.room_send(
