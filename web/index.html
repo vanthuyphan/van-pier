@@ -8,16 +8,20 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #0f0f0f;
-      --surface: #1a1a1a;
-      --surface2: #242424;
-      --border: #2a2a2a;
-      --text: #e0e0e0;
-      --text-dim: #888;
-      --accent: #6c5ce7;
-      --accent-light: #a29bfe;
-      --agent: #00b894;
-      --human: #74b9ff;
+      --bg: #0a0607;
+      --surface: #150d0f;
+      --surface2: #1f1517;
+      --border: #2d1f22;
+      --text: #f0e6e8;
+      --text-dim: #8a7175;
+      --accent: #c41e3a;
+      --accent-light: #e63956;
+      --agent: #d4a017;
+      --human: #c41e3a;
+      --gold: #d4a017;
+      --gold-dim: #8b6914;
+      --crimson: #c41e3a;
+      --velvet: #1f1517;
     }
 
     body {
@@ -44,11 +48,13 @@
     }
 
     .sidebar-header h1 {
-      font-size: 18px;
-      font-weight: 600;
+      font-size: 20px;
+      font-weight: 700;
       display: flex;
       align-items: center;
       gap: 8px;
+      color: var(--gold);
+      letter-spacing: 1px;
     }
 
     .sidebar-header p {
@@ -59,10 +65,11 @@
 
     .sidebar-section {
       padding: 12px 16px 8px;
-      font-size: 11px;
+      font-size: 10px;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-dim);
+      letter-spacing: 1.5px;
+      color: var(--gold-dim);
+      font-weight: 600;
     }
 
     .room-list {
@@ -81,7 +88,7 @@
     }
 
     .room-item:hover { background: var(--surface2); }
-    .room-item.active { background: var(--accent); color: white; }
+    .room-item.active { background: linear-gradient(135deg, var(--crimson), #8b1a2b); color: white; }
     .room-item .hash { color: var(--text-dim); font-weight: 600; }
     .room-item.active .hash { color: rgba(255,255,255,0.7); }
 
@@ -97,7 +104,7 @@
       text-align: center;
       transition: all 0.15s;
     }
-    .new-room-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .new-room-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
 
     /* Agents panel */
     .agents-list {
@@ -120,7 +127,7 @@
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: var(--agent);
+      background: var(--gold);
     }
 
     /* Main chat area */
@@ -172,8 +179,8 @@
       flex-shrink: 0;
     }
 
-    .message-avatar.human { background: var(--human); color: white; font-size: 14px; font-weight: 600; }
-    .message-avatar.agent { background: var(--surface2); }
+    .message-avatar.human { background: var(--crimson); color: white; font-size: 14px; font-weight: 600; }
+    .message-avatar.agent { background: var(--surface2); border: 1px solid var(--gold-dim); }
 
     .message-content { flex: 1; min-width: 0; }
 
@@ -185,15 +192,15 @@
     }
 
     .message-name { font-weight: 600; font-size: 14px; }
-    .message-name.agent-name { color: var(--agent); }
+    .message-name.agent-name { color: var(--gold); }
     .message-time { font-size: 11px; color: var(--text-dim); }
     .message-tag {
       font-size: 10px;
       padding: 1px 6px;
       border-radius: 4px;
-      background: var(--agent);
-      color: white;
-      font-weight: 500;
+      background: var(--gold);
+      color: #0a0607;
+      font-weight: 600;
     }
 
     .message-body {
@@ -255,8 +262,8 @@
       transition: all 0.15s;
     }
 
-    .btn-approve { background: var(--agent); color: white; }
-    .btn-approve:hover { background: #00a885; }
+    .btn-approve { background: var(--gold); color: #0a0607; font-weight: 600; }
+    .btn-approve:hover { background: #e0b020; }
     .btn-reject { background: var(--surface); color: var(--text-dim); border: 1px solid var(--border); }
     .btn-reject:hover { border-color: #e74c3c; color: #e74c3c; }
 
@@ -277,7 +284,7 @@
       transition: border-color 0.15s;
     }
 
-    .input-wrapper:focus-within { border-color: var(--accent); }
+    .input-wrapper:focus-within { border-color: var(--crimson); }
 
     .input-wrapper textarea {
       flex: 1;
@@ -296,7 +303,7 @@
       width: 32px;
       height: 32px;
       border-radius: 8px;
-      background: var(--accent);
+      background: var(--crimson);
       border: none;
       color: white;
       cursor: pointer;
@@ -339,7 +346,7 @@
 
     .autocomplete-item:hover,
     .autocomplete-item.selected {
-      background: var(--accent);
+      background: var(--crimson);
       color: white;
     }
 
@@ -414,7 +421,7 @@
       outline: none;
     }
 
-    .modal input:focus { border-color: var(--accent); }
+    .modal input:focus { border-color: var(--crimson); }
 
     .modal label {
       font-size: 12px;
@@ -430,7 +437,7 @@
       margin-top: 8px;
     }
 
-    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary { background: var(--crimson); color: white; }
     .btn-secondary { background: var(--surface2); color: var(--text); }
 
     .emoji-pick {
@@ -439,7 +446,7 @@
       transition: all 0.1s;
     }
     .emoji-pick:hover { background: var(--surface2); }
-    .emoji-pick.selected { border-color: var(--accent); background: var(--surface2); }
+    .emoji-pick.selected { border-color: var(--gold); background: var(--surface2); }
 
     /* Reply bar */
     .reply-bar {
@@ -460,14 +467,14 @@
     .reply-bar .reply-indicator {
       width: 3px;
       height: 20px;
-      background: var(--accent);
+      background: var(--crimson);
       border-radius: 2px;
       flex-shrink: 0;
     }
 
     .reply-bar .reply-name {
       font-weight: 600;
-      color: var(--agent);
+      color: var(--gold);
       flex-shrink: 0;
     }
 
@@ -529,7 +536,7 @@
       gap: 6px;
     }
 
-    .message-reply-context .reply-to-name { color: var(--agent); font-weight: 500; }
+    .message-reply-context .reply-to-name { color: var(--gold); font-weight: 500; }
   </style>
 </head>
 <body>
@@ -538,10 +545,12 @@
   <div class="sidebar">
     <div class="sidebar-header">
       <h1>Vanpier</h1>
-      <p>Your agents, your rules</p>
+      <p style="font-size:11px;color:var(--text-dim)">Van's Workspace</p>
     </div>
 
-    <div class="sidebar-section">Rooms</div>
+    <div class="sidebar-section" style="cursor:pointer" onclick="showHome()">Home</div>
+
+    <div class="sidebar-section">Conversations</div>
     <div class="room-list" id="roomList"></div>
     <div class="new-room-btn" onclick="showNewRoomModal()">+ New Room</div>
 
@@ -552,7 +561,7 @@
     </div>
 
     <div class="agents-list">
-      <div class="sidebar-section">Agents Online</div>
+      <div class="sidebar-section">My Agents</div>
       <div id="agentList"></div>
       <div class="new-room-btn" onclick="showAddAgentModal()" style="margin:8px 16px">+ Add Agent</div>
     </div>
@@ -560,10 +569,35 @@
 
   <!-- Main -->
   <div class="main" id="mainArea">
-    <div class="welcome">
-      <div>
-        <h2>Welcome to Vanpier</h2>
-        <p>Create a room and invite agents to get started.</p>
+    <div class="welcome" id="homeView">
+      <div style="max-width:600px">
+        <h2 style="color:var(--gold);font-size:28px;font-weight:700;letter-spacing:1px;margin-bottom:4px">Vanpier</h2>
+        <p style="color:var(--text-dim);margin-bottom:32px;font-style:italic">Your personal AI workspace</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left;margin-bottom:24px">
+          <div onclick="showNewTaskModal()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--crimson)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:20px;margin-bottom:6px">&#9889;</div>
+            <div style="font-weight:600;font-size:14px">New Task</div>
+            <div style="font-size:12px;color:var(--text-dim)">Give your agents a mission</div>
+          </div>
+          <div onclick="showNewRoomModal()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--crimson)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:20px;margin-bottom:6px">&#128172;</div>
+            <div style="font-weight:600;font-size:14px">New Chat</div>
+            <div style="font-size:12px;color:var(--text-dim)">Talk with your agents</div>
+          </div>
+          <div onclick="showAddAgentModal()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:20px;margin-bottom:6px">&#129302;</div>
+            <div style="font-weight:600;font-size:14px">Add Agent</div>
+            <div style="font-size:12px;color:var(--text-dim)">Create a new AI agent</div>
+          </div>
+          <div onclick="window.open('/dashboard/','_blank')" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:20px;margin-bottom:6px">&#128202;</div>
+            <div style="font-weight:600;font-size:14px">Dashboard</div>
+            <div style="font-size:12px;color:var(--text-dim)">Audit logs &amp; agent stats</div>
+          </div>
+        </div>
+
+        <div id="homeAgentStatus" style="text-align:left"></div>
       </div>
     </div>
   </div>
@@ -847,6 +881,50 @@
         renderRooms();
         openRoom(data.room_id);
       }
+    }
+
+    function showHome() {
+      currentRoomId = null;
+      currentTaskId = null;
+      renderRooms();
+      const main = document.getElementById('mainArea');
+      main.innerHTML = document.getElementById('homeView') ? '' : '';
+      // Re-render home
+      main.innerHTML = `
+        <div class="welcome" id="homeView">
+          <div style="max-width:600px">
+            <h2 style="color:var(--gold);font-size:28px;font-weight:700;letter-spacing:1px;margin-bottom:4px">Vanpier</h2>
+            <p style="color:var(--text-dim);margin-bottom:32px;font-style:italic">Your personal AI workspace</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left;margin-bottom:24px">
+              <div onclick="showNewTaskModal()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--crimson)'" onmouseout="this.style.borderColor='var(--border)'">
+                <div style="font-size:20px;margin-bottom:6px">&#9889;</div>
+                <div style="font-weight:600;font-size:14px">New Task</div>
+                <div style="font-size:12px;color:var(--text-dim)">Give your agents a mission</div>
+              </div>
+              <div onclick="showNewRoomModal()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--crimson)'" onmouseout="this.style.borderColor='var(--border)'">
+                <div style="font-size:20px;margin-bottom:6px">&#128172;</div>
+                <div style="font-weight:600;font-size:14px">New Chat</div>
+                <div style="font-size:12px;color:var(--text-dim)">Talk with your agents</div>
+              </div>
+              <div onclick="showAddAgentModal()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+                <div style="font-size:20px;margin-bottom:6px">&#129302;</div>
+                <div style="font-weight:600;font-size:14px">Add Agent</div>
+                <div style="font-size:12px;color:var(--text-dim)">Create a new AI agent</div>
+              </div>
+              <div onclick="window.open('/dashboard/','_blank')" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--gold-dim)'" onmouseout="this.style.borderColor='var(--border)'">
+                <div style="font-size:20px;margin-bottom:6px">&#128202;</div>
+                <div style="font-weight:600;font-size:14px">Dashboard</div>
+                <div style="font-size:12px;color:var(--text-dim)">Audit logs &amp; agent stats</div>
+              </div>
+            </div>
+            <div style="text-align:left;font-size:13px;color:var(--text-dim)">
+              <span style="color:var(--gold)">${agents.length} agents</span> online ·
+              <span style="color:var(--crimson)">${Object.keys(rooms).length} conversations</span> ·
+              <span>${allTasks.length} tasks</span>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     function openRoom(roomId) {
